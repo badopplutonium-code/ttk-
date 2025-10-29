@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>概率 TTK 计算器</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        .section {
+            margin-bottom: 20px;
+        }
+        .section-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 5px;
+        }
+        .input-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .input-group label {
+            font-weight: 500;
+            flex-basis: 120px;
+            display: flex;
+            align-items: center;
+        }
+        .input-group input {
+            flex-grow: 1;
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1em;
+        }
+        .part-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 70px;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .part-row input {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 100%;
+            box-sizing: border-box; /* 确保 padding 不会撑大宽度 */
+        }
+        .part-header {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 70px;
+            gap: 10px;
+            margin-bottom: 5px;
+            font-weight: 600;
+            font-size: 0.9em;
+            color: #555;
+            padding-left: 10px;
+        }
+        .btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 500;
+        }
+        .btn-add {
+            background-color: #27ae60;
+            color: white;
+            margin-top: 10px;
+        }
+        .btn-delete {
+            background-color: #e74c3c;
+            color: white;
+            padding: 8px; /* 调整删除按钮大小 */
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .btn-calculate {
+            background-color: #2980b9;
+            color: white;
+            width: 100%;
+            font-size: 1.2em;
+            padding: 12px;
+            margin-top: 20px;
+        }
+        #result {
+            margin-top: 25px;
+            background-color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 5px solid #2980b9;
+        }
+        #result-ttk {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #2c3e50;
+            text-align: center;
+        }
+        #result-dist {
+            margin-top: 15px;
+            font-size: 0.95em;
+            line-height: 1.6;
+        }
+        #error-message {
+            color: #c0392b;
+            font-weight: 600;
+            text-align: center;
+            margin-top: 15px;
+            display: none; /* 默认隐藏 */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>概率 TTK 计算器</h1>
+
+        <div class="section">
+            <div class="section-title">全局设置</div>
+            <div class="input-group">
+                <label for="hp">总血量 (HP)</label>
+                <input type="number" id="hp" value="100">
+            </div>
+            <div class="input-group">
+                <label for="interval">射击间隔 (s)</label>
+                <input type="number" id="interval" value="0.1" step="0.01">
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">身体部位</div>
+            <div class="part-header">
+                <div>部位名称</div>
+                <div>命中概率 (%)</div>
+                <div>伤害值</div>
+                <div>操作</div>
+            </div>
+            <div id="parts-container">
+                <div class="part-row">
+                    <input type="text" class="part-name" value="头">
+                    <input type="number" class="part-prob" value="10">
+                    <input type="number" class="part-dmg" value="80">
+                    <button class="btn btn-delete">删除</button>
+                </div>
+                <div class="part-row">
+                    <input type="text" class="part-name" value="身子">
+                    <input type="number" class="part-prob" value="90">
+                    <input type="number" class="part-dmg" value="25">
+                    <button class="btn btn-delete">删除</button>
+                </div>
+            </div>
+            <button class="btn btn-add" id="add-part-btn">添加部位</button>
+        </div>
+
+        <button class="btn btn-calculate" id="calculate-btn">计算 TTK</button>
+        
+        <div id="error-message"></div>
+
+        <div id="result" style="display: none;">
+            <div id="result-ttk"></div>
+            <div id="result-dist-title" style="font-weight: 600; margin-top: 20px;">击杀概率分布:</div>
+            <pre id="result-dist"></pre> </div>
+    </div>
+
+    <script>
+        const partsContainer = document.getElementById('parts-container');
+        const addPartBtn = document.getElementById('add-part-btn');
+        const calculateBtn = document.getElementById('calculate-btn');
+        const resultEl = document.getElementById('result');
+        const resultTtkEl = document.getElementById('result-ttk');
+        const resultDistEl = document.getElementById('result-dist');
+        const errorEl = document.getElementById('error-message');
+
+        // 1. 添加部位功能
+        addPartBtn.addEventListener('click', () => {
+            const row = document.createElement('div');
+            row.className = 'part-row';
+            row.innerHTML = `
+                <input type="text" class="part-name" placeholder="新部位">
+                <input type="number" class="part-prob" value="0">
+                <input type="number" class="part-dmg" value="0">
+                <button class="btn btn-delete">删除</button>
+            `;
+            partsContainer.appendChild(row);
+        });
+
+        // 2. 删除部位功能 (使用事件委托)
+        partsContainer.addEventListener('click', (e) => {
+            if (e.target.classList.contains('btn-delete')) {
+                e.target.parentElement.remove();
+            }
+        });
+
+        // 3. 核心计算功能
+        calculateBtn.addEventListener('click', () => {
+            // 重置错误和结果
+            errorEl.style.display = 'none';
+            resultEl.style.display = 'none';
+
+            // --- A. 数据收集与校验 ---
+            const HP = parseFloat(document.getElementById('hp').value);
+            const Interval = parseFloat(document.getElementById('interval').value);
+            const partRows = partsContainer.getElementsByClassName('part-row');
+
+            if (HP <= 0 || Interval < 0) {
+                showError("HP 必须大于 0，射击间隔不能为负。");
+                return;
+            }
+
+            let shotDist = {}; // { 伤害: 概率 }
+            let totalProb = 0;
+
+            for (let row of partRows) {
+                const prob = parseFloat(row.querySelector('.part-prob').value);
+                const dmg = parseFloat(row.querySelector('.part-dmg').value);
+
+                if (isNaN(prob) || isNaN(dmg) || prob < 0 || dmg < 0) {
+                    showError("所有概率和伤害值都必须是有效的正数。");
+                    return;
+                }
+
+                if (prob > 0) {
+                    // 累加相同伤害值的概率 (例如两个部位都打25)
+                    shotDist[dmg] = (shotDist[dmg] || 0) + (prob / 100.0);
+                }
+                totalProb += prob;
+            }
+
+            // 校验概率总和
+            if (Math.abs(totalProb - 100.0) > 0.001) {
+                showError(`概率总和必须为 100%，当前为 ${totalProb.toFixed(2)}%`);
+                return;
+            }
+
+            // --- B. 动态规划算法 ---
+            let totalExpectedTTK = 0.0;
+            // damageMap 存储 { 伤害值: 在 N-1 枪后达到此伤害的概率 }
+            let damageMap = { 0: 1.0 }; // 0枪时，造成0伤害的概率是100%
+            let distLog = []; // 记录击杀分布
+
+            const maxShots = 100; // 设置一个合理的上限，防止无限循环
+
+            for (let N = 1; N <= maxShots; N++) {
+                // 关键：TTK 定义为 (N-1) * Interval
+                const ttk_N = (N - 1) * Interval;
+                
+                let newDamageMap = {};
+                let probKillThisShot = 0.0; // 恰好在第 N 枪击杀的总概率 P(N)
+                let probAliveThisShot = 0.0; // 在 N 枪后仍然存活的总概率
+
+                // 遍历上一枪 (N-1) 的所有可能状态
+                for (const [damage, prob] of Object.entries(damageMap)) {
+                    
+                    // 遍历当前这一枪 (N) 的所有可能击中情况
+                    for (const [shot_dmg, shot_prob] of Object.entries(shotDist)) {
+                        
+                        const new_damage = parseFloat(damage) + parseFloat(shot_dmg);
+                        const event_prob = prob * shot_prob; // 发生此事件的链式概率
+
+                        if (new_damage >= HP) {
+                            // 击杀！
+                            probKillThisShot += event_prob;
+                        } else {
+                            // 未击杀，存入下一轮的状态
+                            newDamageMap[new_damage] = (newDamageMap[new_damage] || 0) + event_prob;
+                        }
+                    }
+                }
+
+                // 累加本轮的期望 TTK
+                if (probKillThisShot > 0) {
+                    totalExpectedTTK += probKillThisShot * ttk_N;
+                    distLog.push({ N, ttk: ttk_N, prob: probKillThisShot });
+                }
+
+                // 更新状态
+                damageMap = newDamageMap;
+
+                // 检查是否所有情况都已击杀
+                probAliveThisShot = Object.values(damageMap).reduce((a, b) => a + b, 0);
+                if (probAliveThisShot < 1e-9) { // 使用一个极小值来处理浮点数精度
+                    break; // 已经没有存活的可能了，提前结束循环
+                }
+            }
+            
+            // --- C. 显示结果 ---
+            displayResult(totalExpectedTTK, distLog);
+        });
+
+        function showError(message) {
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+        }
+
+        function displayResult(ttk, distLog) {
+            resultTtkEl.textContent = `平均概率 TTK: ${ttk.toFixed(4)} s`;
+            
+            let distText = "";
+            for (const item of distLog) {
+                distText += `${item.N} 枪 (TTK ${item.ttk.toFixed(2)}s): ${(item.prob * 100).toFixed(2)}%\n`;
+            }
+
+            resultDistEl.textContent = distText;
+            resultEl.style.display = 'block';
+        }
+
+    </script>
+</body>
+</html>
